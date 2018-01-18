@@ -92,9 +92,10 @@ I compiled with Android **NDK r13b** and **platform 22** (Android 5.1).
 | Cortex A53 | REGISTER | | | Crash |
 | Cortex A53 | PERFEVENT | |  | No perf event interface |
 
-Conclusion:
+## Conclusion / status
 
-- Register and Perf event are not working on my devices.
+- Perf event is not working on my devices.
+- Register cannot work as such. PMU must be enabled via a kernel module. I haven't done this yet.
 - I get the same results with Libflush or with my own implementation - which is basically just to check my own implementation is correct.
 - Dedicated thread seems unprecise.
 - `clock_getttime()` gives the best results, but yet unable to recover the secret. Not sure if it's bad configuration, bad luck, or just that the device is not vulnerable to Spectre.
