@@ -37,11 +37,13 @@ $ make
 Connect a smartphone (or an emulator).
 Make sure it is seen by `adb devices`.
 
-Then:
+Then, do `make run` to copy the executable onto your smartphone and run it (with no arguments).
 
-```
-$ make run
-```
+If you wish to run the program with arguments, then you need to push the executable to your smartphone `adb push executable /data/local/tmp`, open a shell `adb shell` and then run the executable with arguments.
+Please have a look at the source code for arguments :)
+
+
+
 
 ### Options
 
@@ -57,13 +59,13 @@ $ make TFLAGS=-DTIMING_REGISTER all
 | -DTIMING_PTHREAD | Uses a dedicated thread counter |
 | -DTIMING_PERFEVENT | Uses the Performance Monitoring Unit |
 | -DTIMING_REGISTER | Uses the Performance Monitor Control Register |
-| -DTIMING_LIBFLUSH | Uses [Libflush](https://github.com/iaik/armageddon). |
+| -DTIMING_LIBFLUSH | Uses [Libflush](https://github.com/iaik/armageddon). Mainly if you do not trust my implementation and want to check with another one :) |
 
 To use [Libflush](https://github.com/iaik/armageddon), you must
 
 1. Download and compile it. See instructions in [libflush](https://github.com/IAIK/armageddon/tree/master/libflush)
 2. Copy the include file `libflush.h` and the compiled `libflush.a` into this directory
-3. Compile with option `DTIMING_LIBFLUSH`
+3. Compile with option `-DTIMING_LIBFLUSH`
 
 ## Results
 
