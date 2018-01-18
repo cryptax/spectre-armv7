@@ -97,58 +97,64 @@ void clearcache(char* begin, char *end)
 
 
 #ifdef TIMING_REGISTER
-// From https://github.com/IAIK/armageddon
+
+/* From:
+   https://github.com/IAIK/armageddon
+   https://www.macs.hw.ac.uk/~hwloidl/Courses/F28HS/tutorials_SysPrg_Tut6.pdf
+   http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0500g/BIIBDHAF.html
+
+   "The PMU is a co-processor, called CP15, seperate from the main processor but on the main chip"
+
+   MRC: move from co-processor to register
+   MCR: move from register to co-processor
+*/
+#define ARMV7_PMUSERENR_ENABLE (1 << 0)
 #define ARMV7_PMCR_E       (1 << 0) /* Enable all counters */
 #define ARMV7_PMCR_P       (1 << 1) /* Reset all counters */
 #define ARMV7_PMCR_C       (1 << 2) /* Cycle counter reset */
 #define ARMV7_PMCR_D       (1 << 3) /* Cycle counts every 64th cpu cycle */
 #define ARMV7_PMCR_X       (1 << 4) /* Export to ETM */
 
-#define ARMV7_PMCNTENSET_C (1 << 31) /* Enable cycle counter */
-
-#define ARMV7_PMOVSR_C (1 << 31) /* Overflow bit */
-
-void arm_v7_timing_init(void)
-{
+void armv7_pmu_init(void) {
   uint32_t value = 0;
+
+  // configure the PMUSERENR register for user mode access - unfortunately I think this only works in kernel mode!
+  printf("Configuring PMUSERENR: probably won't work!\n");
+  __asm__ volatile("MCR p15, 0, %0, c9, c14, 0" :: "r"(value));
+
+  printf("[+] PMUSERENR configured\n");
+
+  // configure the PMCR register: E, P, C, X, but no clock divider.
 
   value |= ARMV7_PMCR_E; // Enable all counters
   value |= ARMV7_PMCR_P; // Reset all counters
   value |= ARMV7_PMCR_C; // Reset cycle counter to zero
   value |= ARMV7_PMCR_X; // Enable export of events
 
-  /*
-  if (div64 > 0) {
-    value |= ARMV7_PMCR_D; // Enable cycle count divider
-    } */
-
-  // Performance Monitor Control Register
   __asm__ volatile ("MCR p15, 0, %0, c9, c12, 0" :: "r" (value));
+  printf("[+] PMCR configured\n");
 
-  // Count Enable Set Register
-  value = 0;
-  value |= ARMV7_PMCNTENSET_C;
-
-  for (unsigned int x = 0; x < 4; x++) {
-    value |= (1 << x); // Enable the PMx event counter
-  }
-
+  // configure the Count Enable Set Register (PMCNTENSET) to enable the Cycle Count Register (PMCCNTR) and PMEVCNTR0 to 5 
+  value = 0xff;
+  // MCR coproc, opcode1, Rd, CRn, CRm [,opcode2]
   __asm__ volatile ("MCR p15, 0, %0, c9, c12, 1" :: "r" (value));
+  printf("[+] PMCNTENSET configured\n");
 
-  // Overflow Flag Status register
-  value = 0;
-  value |= ARMV7_PMOVSR_C;
-
-  for (unsigned int x = 0; x < 4; x++) {
-    value |= (1 << x); // Enable the PMx event counter
-  }
+  // configure the Overflow Status Register (PMOVSR) - same
   __asm__ volatile ("MCR p15, 0, %0, c9, c12, 3" :: "r" (value));
+  printf("[+] PMOVSR configured\n");
+
+  // PMCCNTR can be used without any special configuration now
+  // reset counters
+  __asm__ volatile ("MCR p15, 0, %0, c9, c12, 0\n\t" :: "r" (0x00000017));
+  printf("[+] Counters reset\n");
 }
 
 uint64_t read_cycles()
 {
   uint32_t result = 0;
 
+  // Read PMCCNTR
   __asm__ volatile ("MRC p15, 0, %0, c9, c13, 0" : "=r" (result));
 
   return result;
@@ -342,7 +348,7 @@ int main(int argc, char **argv)
 #endif
 
 #ifdef TIMING_REGISTER
-	arm_v7_timing_init();
+	armv7_pmu_init();
 #endif	
 
 #ifdef TIMING_PTHREAD	
