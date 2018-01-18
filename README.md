@@ -71,13 +71,35 @@ Those results apply to a smartphone with **ARM Cortex A53** cores.
 Those cores are seen as **ARMv7** (I guess because the ROM does not have 64-bit enabled).
 I compiled with Android **NDK r13b** and **platform 22** (Android 5.1).
 
-| Option | Running details | Spectre | 
-| --------- | --------------------- | ---------- |
-| TIMING_POSIX | Runs but there is no obvious timing difference between cache hit and cache miss. Is that a problem of accuracy? | Fail or does not work yet |
-| TIMING_PTHREAD | Runs but returns 0 for each timing. Is this a compiler optimization problem? | Fail or does not work yet. |
-| TIMING_PERFEVENT | Assertion at runtime. No perf event interface available | Not Applicable |
-| TIMING_REGISTER | Crashes? | No |
-| TIMING_LIBFLUSH | Same results - depending on how libflush was compiled | - |
+
+| CPU | TIMING | MAX_TRIES | CACHE_HIT_THRESHOLD | Results |
+| ----- | ---------- | -------------- | --------------------------------- | ---------- |
+| Cortex A8  | PTHREAD | 999 | 80 | Too many cache hits |
+| Cortex A8 | PTHREAD | 5500 | 1 | Still too many cache hits! |
+| Cortex A8 | POSIX | 999 | 80 | Unclear, probably too many cache hits |
+| Cortex A8 | POSIX | 999 | 1 | Unclear |
+| Cortex A8 | PERFEVENT | 999 | 80 | No perf event interface |
+| Cortex A8 | REGISTER | 999 | 80 | Illegal instruction |
+| Cortex A8 | LIBFLUSH with POSIX | 999 | 80 | `find_congruent_addresses: assertion "found == ADDRESS_COUNT" failed` and `Segmentation fault` |
+| Cortex A8 | LIBFLUSH with PTHREAD | 999 | 80 | `find_congruent_addresses: assertion "found == ADDRESS_COUNT" failed` and `Segmentation fault` |
+| Cortex A8 | LIBFLUSH with Register | 999 | 80 | `Illegal instruction ` |
+| Cortex A8 | LIBFLUSH with PERFEVENT | 999 | 80 | No perf event interface |
+| Cortex A53 | PTHREAD | 999 | 80 | too many cache hits. Decrease threshold below 5 |
+| Cortex A53 | PTHREAD | 5500 | 1 | Unclear. Still too many cache hits! |
+| Cortex A53 | PTHREAD | 2500 | 4 | Unclear. The correct character is a cache hit, but so are several others... |
+| Cortex A53 | POSIX | 999 | 80 | No cache hit recorded. Increase threshold around 500 |
+| Cortex A53 | POSIX | 5500 | 380 | Unclear |
+| Cortex A53 | REGISTER | | | Crash |
+| Cortex A53 | PERFEVENT | |  | No perf event interface |
+
+Conclusion:
+
+- Register and Perf event are not working on my devices.
+- Dedicated thread seems unprecise.
+- `clock_getttime()` gives the best results, but yet unable to recover the secret. Not sure if it's bad configuration, bad luck, or just that the device is not vulnerable to Spectre.
+
+
+
 
 
 
