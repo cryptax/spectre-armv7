@@ -89,7 +89,7 @@ I compiled with Android **NDK r13b** and **platform 22** (Android 5.1).
 | Cortex A53 | PTHREAD | 2500 | 4 | Unclear. The correct character is a cache hit, but so are several others... |
 | Cortex A53 | POSIX | 999 | 80 | No cache hit recorded. Increase threshold around 500 |
 | Cortex A53 | POSIX | 5500 | 380 | Unclear |
-| Cortex A53 | REGISTER | | | Crash |
+| Cortex A53 | REGISTER | | | Illegal instruction |
 | Cortex A53 | PERFEVENT | |  | No perf event interface |
 
 ## Conclusion / status
