@@ -1,7 +1,8 @@
 # Attempt of implementation of Spectre for ARMv7A
 
-This is an *attempt* to implement **Spectre** on ARMv7-based Android smartphones.
-ARM Cortex A53 is said **not to be vulnerable for Spectre**, I know, but still, I want to run a few tests. Okay?
+This is an *attempt* to implement a Proof of Concept of **Spectre** on ARMv7-based Android smartphones, re-using lots of input from various prior research (see [source code header](./source.c)).
+
+This Proof of Concept is derived from the one presented in [the paper](https://spectreattack.com/spectre.pdf). It isn't malicious (it reveals a password hidden in the same process). Use it responsibly.
 
 
 ## References
@@ -67,7 +68,7 @@ To use [Libflush](https://github.com/iaik/armageddon), you must
 2. Copy the include file `libflush.h` and the compiled `libflush.a` into this directory
 3. Compile with option `-DTIMING_LIBFLUSH`
 
-## Results
+## Results on ARMv7 based Android smartphones
 
 Those results apply to a smartphone with **ARM Cortex A53** cores.
 Those cores are seen as **ARMv7** (I guess because the ROM does not have 64-bit enabled).
