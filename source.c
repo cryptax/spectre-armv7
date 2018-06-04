@@ -342,7 +342,7 @@ int main(int argc, char **argv)
 
 #ifdef TIMING_LIBFLUSH
 	if (libflush_init(&libflush_session, NULL) == false) {
-	  fprintf(stderr, "Error: Could not initialize libflush\n");
+	  printf("Error: Could not initialize libflush\n");
 	  return -1;
 	}
 #endif
@@ -356,7 +356,7 @@ int main(int argc, char **argv)
 
 	printf("Creating counter thread...\n");
 	if (pthread_create(&counter_thread, NULL, counter_function, NULL)) {
-	  fprintf(stderr, "[-] Error creating thread\n");
+	  printf("[-] Error creating thread\n");
 	  return -1;
 	}
 	printf("[+] Waiting for thread to start?\n");
@@ -415,7 +415,7 @@ int main(int argc, char **argv)
 	// Exit counter thread
 	counter_thread_ended = 1;
 	if (pthread_join(counter_thread, NULL)) {
-	  fprintf(stderr, "[-] Error joining thread\n");
+	  printf("[-] Error joining thread\n");
 	  return -1;
 	}
 #endif

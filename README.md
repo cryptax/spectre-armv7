@@ -33,6 +33,7 @@ Then:
 $ make
 ```
 
+
 ### Run
 
 Connect a smartphone (or an emulator).
@@ -64,7 +65,24 @@ $ make TFLAGS=-DTIMING_REGISTER all
 
 To use [Libflush](https://github.com/iaik/armageddon), you must
 
-1. Download and compile it. See instructions in [libflush](https://github.com/IAIK/armageddon/tree/master/libflush)
+1. Download and **compile it**. See instructions in [libflush](https://github.com/IAIK/armageddon/tree/master/libflush). With NDK 17, the following patch must be applied to be able to compile:
+
+```
+$ git diff config-arm.mk
+diff --git a/libflush/config-arm.mk b/libflush/config-arm.mk
+index 7666fa9..81f1976 100644
+--- a/libflush/config-arm.mk
++++ b/libflush/config-arm.mk
+@@ -6,7 +6,7 @@ ANDROID_SYSROOT = ${ANDROID_NDK_PATH}/platforms/${ANDROID_PLATFORM}/arch-arm
+ ANDROID_CC = ${ANDROID_TOOLCHAIN_BIN}/arm-linux-androideabi-gcc
+ ANDROID_CC_FLAGS = --sysroot=${ANDROID_SYSROOT}
+ 
+-ANDROID_INCLUDES = -I ${ANDROID_NDK_PATH}/platforms/${ANDROID_PLATFORM}/arch-arm/usr/include
++ANDROID_INCLUDES = -I ${ANDROID_NDK_PATH}/sysroot/usr/include -I ${ANDROID_NDK_PATH}/sysroot/usr/include/arm-linux-androideabi/
+ ANDROID_CFLAGS = ${ANDROID_INCLUDES} -march=armv7-a -fPIE
+ ANDROID_LDFLAGS = ${ANDROID_INCLUDES} -march=armv7-a -fPIE
+ ```
+
 2. Copy the include file `libflush.h` and the compiled `libflush.a` into this directory
 3. Compile with option `-DTIMING_LIBFLUSH`
 
@@ -73,8 +91,8 @@ To use [Libflush](https://github.com/iaik/armageddon), you must
 Those results apply to a smartphone with **ARM Cortex A53** cores.
 Those cores are seen as **ARMv7** (I guess because the ROM does not have 64-bit enabled).
 I compiled with Android **NDK r13b** and **platform 22** (Android 5.1).
-
-
+More recently, I compiled with Android **NDK r17** and platform 22.
+ 
 | CPU | TIMING | MAX_TRIES | CACHE_HIT_THRESHOLD | Results |
 | ----- | ---------- | -------------- | --------------------------------- | ---------- |
 | Cortex A8  | PTHREAD | 999 | 80 | Too many cache hits |
@@ -87,13 +105,15 @@ I compiled with Android **NDK r13b** and **platform 22** (Android 5.1).
 | Cortex A8 | LIBFLUSH with PTHREAD | 999 | 80 | `find_congruent_addresses: assertion "found == ADDRESS_COUNT" failed` and `Segmentation fault` |
 | Cortex A8 | LIBFLUSH with Register | 999 | 80 | `Illegal instruction ` |
 | Cortex A8 | LIBFLUSH with PERFEVENT | 999 | 80 | No perf event interface |
+| Cortex A53 | LIBFLUSH with cache eviction and POSIX and custom DEVICE_CONFIGURATION | 999 | 80 | `find_congruent_addresses: assertion "found == ADDRESS_COUNT"` | 
 | Cortex A53 | PTHREAD | 999 | 80 | too many cache hits. Decrease threshold below 5 |
 | Cortex A53 | PTHREAD | 5500 | 1 | Unclear. Still too many cache hits! |
 | Cortex A53 | PTHREAD | 2500 | 4 | Unclear. The correct character is a cache hit, but so are several others... |
 | Cortex A53 | POSIX | 999 | 80 | No cache hit recorded. Increase threshold around 500 |
 | Cortex A53 | POSIX | 5500 | 380 | Unclear |
-| Cortex A53 | REGISTER | | | Illegal instruction |
+| Cortex A53 | REGISTER | | | Illegal instruction `Configuring PMUSERENR: probably won't work!` |
 | Cortex A53 | PERFEVENT | |  | No perf event interface |
+
 
 ## Conclusion / status
 
